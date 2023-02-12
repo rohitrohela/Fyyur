@@ -42,6 +42,7 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    shows = db.relationship('Show', backref='venue', lazy=True)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -57,8 +58,18 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-
+    website_link = db.Column(db.String(150))
+    shows = db.relationship('Show', backref='artist', lazy=True)
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
+
+
+class Show(db.Model):
+    __tablename__ = 'Show'
+
+    id = db.Column(db.Integer, primary_key=True)
+    venueId = db.Column(db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
+    artistId = db.Column(db.Integer, db.ForeignKey('Artist.id'), primary_key=True)
+    Time = db.Column(db.DateTime)
 
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
@@ -95,28 +106,48 @@ def index():
 def venues():
     # TODO: replace with real venues data.
     #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-    data = [{
-        "city": "San Francisco",
-        "state": "CA",
-        "venues": [{
-            "id": 1,
-            "name": "The Musical Hop",
-            "num_upcoming_shows": 0,
-        }, {
-            "id": 3,
-            "name": "Park Square Live Music & Coffee",
-            "num_upcoming_shows": 1,
-        }]
-    }, {
-        "city": "New York",
-        "state": "NY",
-        "venues": [{
-            "id": 2,
-            "name": "The Dueling Pianos Bar",
-            "num_upcoming_shows": 0,
-        }]
-    }]
-    return render_template('pages/venues.html', areas=data);
+    data = []
+
+    for location in (db.session.query(Venue.city, Venue.state).group_by(Venue.city, Venue.state).all()):
+
+        data.append({
+            "city": location[0],
+            "state": location[1],
+            "venues": []
+        })
+
+        for venue in (
+                db.session.query(Venue.id, Venue.name).filter(Venue.city == location[0], Venue.state == location[1]).all()):
+            data[len(data)-1]["venues"].append({
+                "id": venue[0],
+                "name": venue[1],
+                "num_upcoming_shows": 2
+            })
+
+    return render_template('pages/venues.html', areas=data)
+
+    # data = [{
+    #     "city": "San Francisco",
+    #     "state": "CA",
+    #     "venues": [{
+    #         "id": 1,
+    #         "name": "The Musical Hop",
+    #         "num_upcoming_shows": 0,
+    #     }, {
+    #         "id": 3,
+    #         "name": "Park Square Live Music & Coffee",
+    #         "num_upcoming_shows": 1,
+    #     }]
+    # }, {
+    #     "city": "New York",
+    #     "state": "NY",
+    #     "venues": [{
+    #         "id": 2,
+    #         "name": "The Dueling Pianos Bar",
+    #         "num_upcoming_shows": 0,
+    #     }]
+    # }]
+
 
 
 @app.route('/venues/search', methods=['POST'])
@@ -258,17 +289,28 @@ def delete_venue(venue_id):
 @app.route('/artists')
 def artists():
     # TODO: replace with real data returned from querying the database
-    data = [{
-        "id": 4,
-        "name": "Guns N Petals",
-    }, {
-        "id": 5,
-        "name": "Matt Quevedo",
-    }, {
-        "id": 6,
-        "name": "The Wild Sax Band",
-    }]
+    data = []
+
+    for artist in (db.session.query(Artist.id, Artist.name).all()):
+        data.append({
+            "id": artist[0],
+            "name": artist[1]
+        })
+
     return render_template('pages/artists.html', artists=data)
+
+
+    # data = [{
+    #     "id": 4,
+    #     "name": "Guns N Petals",
+    # }, {
+    #     "id": 5,
+    #     "name": "Matt Quevedo",
+    # }, {
+    #     "id": 6,
+    #     "name": "The Wild Sax Band",
+    # }]
+
 
 
 @app.route('/artists/search', methods=['POST'])
