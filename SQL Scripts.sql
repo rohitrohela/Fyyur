@@ -2,7 +2,7 @@
 
 insert into public."Venue"(id, name, city, state, address, phone, image_link, facebook_link)
 values(1, 'The Musical Hop', 'San Francisco', 'CA', '1015 Folsom Street', '1231231234',
-	   'https://images.unsplash.com/photo-1543900694-133f3…hcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60','https://www.facebook.com/TheMusicalHop');
+	   'https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60','https://www.facebook.com/TheMusicalHop');
 
 insert into public."Venue"(id, name, city, state, address, phone, image_link, facebook_link)
 values(2, 'The Dueling Pianos Bar', 'New York', 'NY', '335 Delancey Street', '9140031132',
