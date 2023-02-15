@@ -7,7 +7,7 @@ import dateutil.parser
 import datetime
 import babel
 import dateutil.utils
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -15,6 +15,8 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from flask_migrate import Migrate
 from forms import *
+from models import db
+from models import Venue, Artist, Show
 
 # ----------------------------------------------------------------------------#
 # App Config.
@@ -23,63 +25,12 @@ from forms import *
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
+db.init_app(app)
 migrate = Migrate(app, db)
 
 
 # TODO: connect to a local postgresql database
-
-# ----------------------------------------------------------------------------#
-# Models.
-# ----------------------------------------------------------------------------#
-
-class Venue(db.Model):
-    __tablename__ = 'Venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    genres = db.Column(db.String)
-    shows = db.relationship('Show', backref='venue', lazy=True)
-    isLookingForTalent = db.Column(db.Boolean, default=False)
-    seekingDescription = db.Column(db.String)
-    website_link = db.Column(db.String(150))
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-
-class Artist(db.Model):
-    __tablename__ = 'Artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(150))
-    shows = db.relationship('Show', backref='artist', lazy=True)
-    isLookingForVenues = db.Column(db.Boolean, default=False)
-    seekingDescription = db.Column(db.String)
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-
-class Show(db.Model):
-    __tablename__ = 'Show'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    venueId = db.Column(db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
-    artistId = db.Column(db.Integer, db.ForeignKey('Artist.id'), primary_key=True)
-    showTime = db.Column(db.DateTime)
-
-
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
 
 # ----------------------------------------------------------------------------#
 # Filters.
@@ -106,13 +57,9 @@ def index():
     return render_template('pages/home.html')
 
 
-#  Venues
-#  ----------------------------------------------------------------
 
 @app.route('/venues')
 def venues():
-    # TODO: replace with real venues data.
-    #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
     data = []
 
     for location in (db.session.query(Venue.city, Venue.state).group_by(Venue.city, Venue.state).all()):
@@ -123,9 +70,7 @@ def venues():
             "venues": []
         })
 
-        for venue in (
-                db.session.query(Venue.id, Venue.name).filter(Venue.city == location[0],
-                                                              Venue.state == location[1]).all()):
+        for venue in (db.session.query(Venue.id, Venue.name).filter(Venue.city == location[0], Venue.state == location[1]).all()):
             data[len(data) - 1]["venues"].append({
                 "id": venue[0],
                 "name": venue[1],
@@ -137,9 +82,6 @@ def venues():
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
-    # TODO: implement search on Venues with partial string search. Ensure it is case-insensitive.
-    # search for Hop should return "The Musical Hop".
-    # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
     searchTerm = request.form['search_term']
     searchResult = db.session.query(Venue.id, Venue.name).filter(Venue.name.ilike('%' + searchTerm + '%')).all()
 
@@ -161,38 +103,30 @@ def search_venues():
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
-    # shows the venue page with the given venue_id
-    # TODO: replace with real venue data from the venues table, using venue_id
-
     venue = db.session.query(Venue).filter(Venue.id == venue_id).first()
     pastShows = []
     upcomingShows = []
 
     for show in venue.shows:
+        showDetails = {
+            "artist_id": show.artistId,
+            "artist_name": show.artist.name,
+            "artist_image_link": show.artist.image_link,
+            "start_time": str(show.showTime)
+        }
         if show.showTime > datetime.now():
-            upcomingShows.append({
-                "artist_id": show.artistId,
-                "artist_name": show.artist.name,
-                "artist_image_link": show.artist.image_link,
-                "start_time": str(show.showTime)
-            })
+            upcomingShows.append(showDetails)
         else:
-            pastShows.append({
-                "artist_id": show.artistId,
-                "artist_name": show.artist.name,
-                "artist_image_link": show.artist.image_link,
-                "start_time": str(show.showTime)
-            })
+            pastShows.append(showDetails)
 
     genres = []
     if venue.genres is not None:
         genres = venue.genres.split(',')
 
-
     data = {
         "id": venue.id,
         "name": venue.name,
-        "genres": genres,  # todo if genere is null then it gets break
+        "genres": genres,
         "address": venue.address,
         "city": venue.city,
         "state": venue.state,
@@ -221,8 +155,6 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-    # TODO: insert form data as a new Venue record in the db, instead
-    # TODO: modify data to be the data object returned from db insertion
     try:
         venue = Venue()
         venue.name = request.form['name']
@@ -237,10 +169,6 @@ def create_venue_submission():
         if len(request.form.getlist("seeking_talent")) == 1:
             venue.isLookingForTalent = True
         venue.seekingDescription = request.form['seeking_description']
-        # on successful db insert, flash success
-        # TODO: on unsuccessful db insert, flash an error instead.
-        # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-        # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
 
         db.session.add(venue)
         db.session.commit()
@@ -255,12 +183,15 @@ def create_venue_submission():
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
-    # TODO: Complete this endpoint for taking a venue_id, and using
-    # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-
-    # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-    # clicking that button delete it from the db then redirect the user to the homepage
-    return None
+    try:
+        Show.query.filter_by(venueId=venue_id).delete()
+        Venue.query.filter_by(id=venue_id).delete()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+    finally:
+        db.session.close()
+    return jsonify({'success': True})
 
 
 #  Artists
@@ -338,7 +269,7 @@ def show_artist(artist_id):
         "genres": genres,
         "city": artist.city,
         "state": artist.state,
-        "phone": artist.phone,  # todo format phone no
+        "phone": artist.phone,
         "seeking_venue": artist.isLookingForVenues,
         "image_link": artist.image_link,
         "past_shows": pastShows,

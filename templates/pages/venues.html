@@ -6,14 +6,33 @@
 	<ul class="items">
 		{% for venue in area.venues %}
 		<li>
-			<a href="/venues/{{ venue.id }}">
-				<i class="fas fa-music"></i>
-				<div class="item">
-					<h5>{{ venue.name }}</h5>
-				</div>
-			</a>
+
+            <a href="/venues/{{ venue.id }}">
+                <i class="fas fa-music"></i>
+                <div class="item">
+                    <h5>{{ venue.name }}</h5>
+                </div>
+            </a>
+            <button type="submit" class="btn btn-danger delete-button" data-id="{{ venue.id }}">&times;</button>
+
 		</li>
 		{% endfor %}
 	</ul>
+    <script>
+        const deleteBtns = document.querySelectorAll('.delete-button');
+        for (let i = 0; i < deleteBtns.length; i++) {
+            const btn = deleteBtns[i];
+            btn.onclick = function(e) {
+                console.log(e.details);
+                const venueId = e.target.dataset['id'];
+                fetch('/venues/' + venueId, {
+                method: 'DELETE'
+                })
+                .then(function() {
+                    location.reload();
+                })
+            }
+        }
+    </script>
 {% endfor %}
 {% endblock %}
