@@ -94,7 +94,7 @@ def search_venues():
         response["data"].append({
             "id": venue.id,
             "name": venue.name,
-            "num_upcoming_shows": 0  # TODO implement no of upcoming event
+            "num_upcoming_shows": len(db.session.query(Show).filter(Show.venueId == venue.id).all())
         })
 
     return render_template('pages/search_venues.html', results=response,
@@ -130,7 +130,7 @@ def show_venue(venue_id):
         "address": venue.address,
         "city": venue.city,
         "state": venue.state,
-        "phone": venue.phone,  # todo format phone no
+        "phone": venue.phone,
         "website": venue.website_link,
         "facebook_link": venue.facebook_link,
         "seeking_talent": venue.isLookingForTalent,
@@ -227,7 +227,7 @@ def search_artists():
         response["data"].append({
             "id": artist.id,
             "name": artist.name,
-            "num_upcoming_shows": 0  # TODO implement no of upcoming event
+            "num_upcoming_shows": len(db.session.query(Artist).filter(Show.artistId == artist.id).all())
         })
 
     return render_template('pages/search_artists.html', results=response,
@@ -331,7 +331,7 @@ def edit_artist_submission(artist_id):
         # TODO: on unsuccessful db insert, flash an error instead.
         # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
         db.session.rollback()
-        flash('Artist ' + request.form['name'] + ' was successfully updated! because : ' + str(e))
+        flash('Artist ' + request.form['name'] + ' could not be updated, because : ' + str(e))
     finally:
         db.session.close()
     return redirect(url_for('show_artist', artist_id=artist_id))
@@ -425,7 +425,7 @@ def create_artist_submission():
         # TODO: on unsuccessful db insert, flash an error instead.
         # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
         db.session.rollback()
-        flash('Artist ' + request.form['name'] + ' was successfully listed! because : ' + str(e))
+        flash('Artist ' + request.form['name'] + ' could not be listed, because : ' + str(e))
     finally:
         db.session.close()
 
@@ -466,22 +466,21 @@ def create_shows():
 def create_show_submission():
     # called to create new shows in the db, upon submitting new show listing form
     # TODO: insert form data as a new Show record in the db, instead
-    newShow = Show()
-    newShow.artistId = request.form['artist_id']
-    newShow.venueId = request.form['venue_id']
-    #newShow.showTime = datetime.strptime(request.form['start_time'], '%y-%m-%d %H:%M:%S')
-    newShow.showTime =  dateutil.parser.parse(request.form['start_time'])
-    db.session.add(newShow)
-    db.session.commit()
-    db.session.close()
 
+    try:
+        newShow = Show()
+        newShow.artistId = request.form['artist_id']
+        newShow.venueId = request.form['venue_id']
 
-
-    # on successful db insert, flash success
-    flash('Show was successfully listed!')
-    # TODO: on unsuccessful db insert, flash an error instead.
-    # e.g., flash('An error occurred. Show could not be listed.')
-    # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+        newShow.showTime = dateutil.parser.parse(request.form['start_time'])
+        db.session.add(newShow)
+        db.session.commit()
+        flash('Show was successfully listed!')
+    except Exception as e:
+        db.session.rollback()
+        flash('Show could not be listed because : ' + str(e))
+    finally:
+        db.session.close()
     return render_template('pages/home.html')
 
 
